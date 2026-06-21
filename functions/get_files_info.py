@@ -3,18 +3,18 @@ import os
 
 def get_files_info(working_directory: str, directory: str = ".") -> str:
     try:
-        pwd = os.path.abspath(working_directory)
-        target_dir = os.path.normpath(os.path.join(pwd, directory))
+        pwd: str = os.path.abspath(working_directory)
+        target_dir: str = os.path.normpath(os.path.join(pwd, directory))
 
-        valid_target_dir = os.path.commonpath([pwd, target_dir]) == pwd
+        valid_target_dir: bool = os.path.commonpath([pwd, target_dir]) == pwd
         if not valid_target_dir:
             return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
 
         if not os.path.isdir(target_dir):
             return f'Error: "{directory}" is not a directory'
 
-        files = os.listdir(target_dir)
-        file_info = list(
+        files: list[str] = os.listdir(target_dir)
+        file_info: list[tuple[int, bool]] = list(
             map(
                 lambda file: (
                     os.path.getsize(f"{target_dir}/{file}"),
@@ -24,8 +24,8 @@ def get_files_info(working_directory: str, directory: str = ".") -> str:
             )
         )
 
-        file_details = dict(zip(files, file_info))
-        result = "\n".join(
+        file_details: dict[str, tuple[int, bool]] = dict(zip(files, file_info))
+        result: str = "\n".join(
             list(
                 map(
                     lambda file: (
