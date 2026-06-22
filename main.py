@@ -1,5 +1,6 @@
 import argparse
 import os
+import pprint
 
 from dotenv import load_dotenv
 from google import genai
@@ -27,34 +28,18 @@ def verbose(content, result):
             "No usage metadata found in the response. API request most likely failed, try again."
         )
 
-    return f"""User prompt: {content}
-Prompt tokens: {result.usage_metadata.prompt_token_count}
-Response tokens: {result.usage_metadata.candidates_token_count}"""
+    return f"""User prompt: {content}\nPrompt tokens: {result.usage_metadata.prompt_token_count}\nResponse tokens: {result.usage_metadata.candidates_token_count}"""
 
 
-def main():
-    client = load_api_key()
-
-    parser = argparse.ArgumentParser(description="chatter")
-    parser.add_argument("user_prompt", type=str, help="User prompt")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-
-    args = parser.parse_args()
-    content = args.user_prompt
-
-    config = types.GenerateContentConfig(
-        tools=[available_functions], system_instruction=system_prompt
-    )
-
-    messages: list[types.Content] = [
-        types.Content(role="user", parts=[types.Part(text=content)])
-    ]
-
+def generate(client, config, messages, args):
     result = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=messages,
         config=config,
     )
+
+    if result.candidates:
+        map(lambda candidate: messages.append(candidate.content), result.candidates)
 
     if result.function_calls:
         verbosity = False
@@ -75,7 +60,36 @@ def main():
         if not function_call_result.parts[0].function_response.response:
             raise Exception("Response is empty")
 
-        print(f"-> {function_call_result.parts[0].function_response.response}")
+        messages.append(types.Content(role="user", parts=function_call_result.parts))
+        pprint.pprint(f"-> {function_call_result.parts[0].function_response.response}")
+
+    return result
+
+def main():
+    client = load_api_key()
+    result = types.GenerateContentResponse()
+    parser = argparse.ArgumentParser(description="chatter")
+    parser.add_argument("user_prompt", type=str, help="User prompt")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+
+    args = parser.parse_args()
+    content: str = args.user_prompt
+
+    config = types.GenerateContentConfig(
+        tools=[available_functions], system_instruction=system_prompt
+    )
+
+    messages: list[types.Content] = [
+        types.Content(role="user", parts=[types.Part(text=content)])
+    ]
+
+    for _ in range(20):
+        result = generate(client, config, messages, args)
+        if result.text:
+            break
+
+    if not result.text:
+        exit("Loop did not end.")
 
     if args.verbose:
         print(verbose(content, result))

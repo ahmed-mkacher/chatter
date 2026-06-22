@@ -4,7 +4,7 @@ from google.genai import types
 
 schema_write_file = types.FunctionDeclaration(
     name="write_file",
-    description="Write passed in content into the targeted file.",
+    description="Write / overwrite passed in content into the targeted file.",
     parameters=types.Schema(
         type=types.Type.OBJECT,
         properties={
@@ -14,7 +14,7 @@ schema_write_file = types.FunctionDeclaration(
             ),
             "content": types.Schema(
                 type=types.Type.STRING,
-                description="The content to write to the targeted file",
+                description="The content to write / overwrite to the targeted file",
             )
         },
     ),
