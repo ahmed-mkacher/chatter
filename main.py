@@ -1,8 +1,12 @@
-import os
 import argparse
+import os
+
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+from call_function import available_functions, call_function
+from prompts import system_prompt
 
 
 def load_api_key():
@@ -38,6 +42,10 @@ def main():
     args = parser.parse_args()
     content = args.user_prompt
 
+    config = types.GenerateContentConfig(
+        tools=[available_functions], system_instruction=system_prompt
+    )
+
     messages: list[types.Content] = [
         types.Content(role="user", parts=[types.Part(text=content)])
     ]
@@ -45,10 +53,33 @@ def main():
     result = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=messages,
+        config=config,
     )
+
+    if result.function_calls:
+        verbosity = False
+        function_call_result = types.Content()
+
+        if args.verbose:
+            verbosity = True
+
+        for call in result.function_calls:
+            function_call_result = call_function(call, verbosity)
+
+        if not function_call_result.parts:
+            raise Exception("Parts array is empty.")
+
+        if not function_call_result.parts[0].function_response:
+            raise Exception("No function response was returned.")
+
+        if not function_call_result.parts[0].function_response.response:
+            raise Exception("Response is empty")
+
+        print(f"-> {function_call_result.parts[0].function_response.response}")
 
     if args.verbose:
         print(verbose(content, result))
+
     print(f"Response:\n{result.text}")
 
 
